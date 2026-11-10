@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function memberOf(workspaceId) { return signedIn() && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)); }
+    function isDom(workspaceId) { return memberOf(workspaceId) && get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data.role == 'dom'; }
+    match /workspaces/{workspaceId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow read: if memberOf(workspaceId);
+      allow update: if isDom(workspaceId);
+      allow delete: if false;
+      match /members/{uid} {
+        allow read: if memberOf(workspaceId);
+        allow create: if signedIn() && uid == request.auth.uid && (
+          (request.resource.data.role == 'dom' && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid) ||
+          (request.resource.data.role == 'sub' && request.resource.data.inviteCode is string && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)) && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.workspaceId == workspaceId && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.used != true)
+        );
+        allow update: if uid == request.auth.uid && resource.data.role == request.resource.data.role;
+        allow delete: if uid == request.auth.uid && resource.data.role != 'dom';
+      }
+      match /{collection}/{itemId} {
+        allow read: if memberOf(workspaceId);
+        allow create, delete: if memberOf(workspaceId) && (collection in ['tasks','checkins','reports','agreements'] || (collection in ['rules','consequences','rewards'] && isDom(workspaceId)));
+        allow update: if memberOf(workspaceId) && (collection in ['tasks','checkins','reports','agreements'] || (collection in ['rules','consequences','rewards'] && isDom(workspaceId)) || (collection == 'consequences' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'Completed'));
+      }
+    }
+    match /invites/{code} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.workspaceId is string;
+      allow get: if signedIn();
+      allow list: if false;
+      allow update: if signedIn() && (resource.data.ownerId == request.auth.uid || (resource.data.used != true && request.resource.data.used == true && exists(/databases/$(database)/documents/workspaces/$(resource.data.workspaceId)/members/$(request.auth.uid)) && get(/databases/$(database)/documents/workspaces/$(resource.data.workspaceId)/members/$(request.auth.uid)).data.inviteCode == code));
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+    match /users/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+    match /users/{uid}/private/{collection}/{itemId} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
+  }
+}

@@ -1,56 +1,38 @@
-# The Shared Space — Vercel starter
+# The Shared Space — Firebase + Vercel
 
-A responsive Next.js starter based on the uploaded weekly planner. Includes:
-- Dom/Sub view switcher (visual demo only; not authentication)
-- Weekly roster based on the document
-- Daily routine checklist
-- 17 rules from the document, with editable active toggles
-- Cycle tracker UI
-- Personal tracker placeholder
-- Reports, check-ins, rewards, consequences and boundaries sections
-- Local browser persistence for demo data
-- Supabase SQL starter with row-level security policies
-- PWA manifest
+A responsive Next.js app for two consenting adults to manage shared routines, rules, weekly planning, rewards, agreed consequences, check-ins and reports. Personal/cycle/intimate logs are stored in a user-owned Firestore path and are private by default.
 
-## Important status
+## 1. Firebase setup
+1. Create a Firebase project at https://console.firebase.google.com.
+2. Add a **Web app** and copy its config values.
+3. Enable **Authentication → Sign-in method → Email/Password**.
+4. Create a **Cloud Firestore** database.
+5. Open Firestore Rules and publish the contents of `firestore.rules`.
+6. Copy `.env.example` to `.env.local` and fill in the six Firebase values.
 
-**This is a deployable starter/demo, not yet a production-ready private multi-user app.**
-The current UI stores tasks, rules and cycle entries in the current browser's local storage. That means:
-- It does not sync between phones or accounts.
-- The Dom/Sub switch is only a UI preview, not access control.
-- Do not enter real intimate or menstrual health information in this demo.
-- Supabase is not wired into the UI yet; the SQL file is a starting schema, not a complete audited security implementation.
+## 2. Run locally
+Requires Node.js 20+.
 
-Before using real data, implement Supabase Auth, workspace creation/invitations, server-side role checks, and test every RLS policy. Consider professional security review because cycle and intimate data are sensitive.
+```bash
+npm install
+npm run dev
+```
+Open http://localhost:3000.
 
-## Run locally
-
-1. Install Node.js 20 or newer.
-2. Extract this ZIP.
-3. In the project folder run:
-   ```bash
-   npm install
-   npm run dev
-   ```
-4. Open http://localhost:3000
-
-## Deploy to Vercel
-
-1. Create a GitHub repository and upload the extracted project.
+## 3. Deploy to Vercel
+1. Push this folder to a private GitHub repository.
 2. Import the repository at https://vercel.com/new.
-3. Deploy. No environment variables are needed for demo mode.
-4. For Supabase integration, create a project at https://supabase.com, run `supabase/schema.sql` in the SQL editor, and add the environment variables from `.env.example` in Vercel.
+3. Add the six `NEXT_PUBLIC_FIREBASE_*` environment variables in Vercel Project Settings → Environment Variables.
+4. Deploy.
 
-## Next production steps
+## Pairing
+The first person registers and creates a workspace as Dom. In Settings, generate an invitation code. The second person registers with their own email/password, enters that code, and joins as Sub. The workspace membership is checked by Firestore rules; the role switch is not a security boundary.
 
-1. Add Supabase email authentication.
-2. Add secure workspace creation and one-time invite codes.
-3. Implement server-side workspace role permissions.
-4. Connect task/rule/period/check-in CRUD to Supabase.
-5. Add a separate `shared_with_workspace` control for each health/personal entry.
-6. Add data export and account deletion.
-7. Test RLS with two separate accounts before entering any real data.
+## Data and privacy
+- Shared workspace collections: tasks, rules, consequences, rewards, check-ins, reports and agreements.
+- Personal records: `users/{uid}/private/{collection}/{id}`. The Firestore rules only permit the owning user to read/write these documents.
+- The app does not require intimate photos, recordings or proof. Intimate activity is optional, self-reported and private.
+- Cycle tracking is not medical advice and predictions are intentionally omitted.
 
-## Planner content used
-
-The weekly assignments and the 17 rules are transcribed/adapted from `weekly_daddy_roleplay_planner.docx`. Optional photo tasks are described as non-intimate and never mandatory. The app keeps the planner's general routine while making consent, privacy and wellbeing explicit.
+## Before real-world use
+This is a functional starter, not a certified medical or security product. Test with two accounts and review the deployed Firestore rules. Sensitive information deserves a professional security review. Enable Firebase App Check, configure authorized domains, strong passwords and account recovery. Do not store passwords or safeword details in ordinary notes. Do not use this app to enforce unsafe, non-consensual or coercive activity.
